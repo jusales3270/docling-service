@@ -50,6 +50,25 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"files": result}).encode())
             return
+        if self.path.startswith('/read'):
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            department = qs.get('department', [''])[0]
+            filename = qs.get('file', [''])[0]
+            md_path = os.path.join(KNOWLEDGE_DIR, department, filename)
+            if not os.path.exists(md_path):
+                self.send_response(404)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "not found"}).encode())
+                return
+            with open(md_path) as mf:
+                content = mf.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"department": department, "file": filename, "content": content}).encode())
+            return
         self.send_response(404)
         self.end_headers()
 
