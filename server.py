@@ -71,7 +71,7 @@ def delete_chunks(department, source_file):
     supabase_request("DELETE", path)
 
 
-def index_document(department, source_file, markdown):
+def index_document(department, source_file, markdown, company_id=None):
     # Remove versões antigas do mesmo arquivo antes de reindexar
     try:
         delete_chunks(department, source_file)
@@ -87,6 +87,7 @@ def index_document(department, source_file, markdown):
     for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
         rows.append({
             "department": department,
+            "company_id": company_id,
             "source_file": source_file,
             "chunk_index": i,
             "content": chunk,
@@ -154,6 +155,7 @@ class Handler(BaseHTTPRequestHandler):
                     "query_embedding": q_emb,
                     "match_count": match_count,
                     "filter_department": department,
+                    "filter_company": payload.get("company_id"),
                 }
                 res = supabase_request("POST", "rpc/match_knowledge", rpc_body)
                 self._json(200, {"results": json.loads(res)})
@@ -189,6 +191,7 @@ class Handler(BaseHTTPRequestHandler):
             boundary = boundary_match.group(1).encode()
             filename, body, fields = parse_multipart(data, boundary)
             department = fields.get('department', 'geral')
+            company_id = fields.get("company_id") or None
 
             if not filename or body is None:
                 self._json(400, {"error": "no file"})
@@ -213,7 +216,7 @@ class Handler(BaseHTTPRequestHandler):
                 indexed = 0
                 index_error = None
                 try:
-                    indexed = index_document(department, filename + ".md", markdown)
+                    indexed = index_document(department, filename + ".md", markdown, company_id)
                 except Exception as e:
                     index_error = str(e)
                     print(f"[upload] erro ao indexar no pgvector: {e}")
