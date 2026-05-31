@@ -163,6 +163,25 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(500, {"error": str(e)})
             return
 
+        # ---------- Chunks completos (modo contagem) ----------
+        if self.path == '/chunks':
+            try:
+                payload = json.loads(data)
+                company_id = payload.get('company_id')
+                department = payload.get('department')
+                if not company_id:
+                    self._json(400, {"error": "company_id obrigatorio"})
+                    return
+                q = f"knowledge_chunks?company_id=eq.{urllib.parse.quote(company_id)}"
+                if department:
+                    q += f"&department=eq.{urllib.parse.quote(department)}"
+                q += "&select=department,source_file,chunk_index,content&order=source_file,chunk_index"
+                res = supabase_request("GET", q)
+                self._json(200, {"chunks": json.loads(res)})
+            except Exception as e:
+                self._json(500, {"error": str(e)})
+            return
+
         # ---------- Delete ----------
         if self.path == '/delete':
             try:
